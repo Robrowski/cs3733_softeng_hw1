@@ -72,53 +72,18 @@ public class FrequentFlyer
 	 * @return the frequent flyer's point level after this flight (truncating any fractions).
 	 */
 	public int recordFlight(String from, String to)
-	{
-		double startingPoints = pointsAvailable;
+	{		
 		int miles = distTable.getDistance(from, to); // Miles for current flight in question
-		if (miles > 0 && frequentFlyerLevel == FrequentFlyerLevel.BASIC) { 
-			if (silverMiles - milesFlown <= miles) { // Indicates that a level has been earned
-				int milesEarnedAtThisLevel =  (miles - (silverMiles - milesFlown)); // Miles flow at this level
-				miles -= milesEarnedAtThisLevel; // Update remaining miles from current flight
-				pointsAvailable +=  milesEarnedAtThisLevel*basicMult ; // update points earned at this level
-				frequentFlyerLevel = FrequentFlyerLevel.SILVER; // update level
-			} else {
-				pointsAvailable += miles*basicMult; // update points
-				miles = 0; // All miles entered
-			}
-		}
-		if(miles > 0 && frequentFlyerLevel == FrequentFlyerLevel.SILVER){
-			if (goldMiles - milesFlown <= miles) { // Indicates that a level has been earned
-				int milesEarnedAtThisLevel =  (miles - (goldMiles - milesFlown)); // Miles flow at this level
-				miles -= milesEarnedAtThisLevel; // Update remaining miles from current flight
-				pointsAvailable +=  milesEarnedAtThisLevel*silverMult ; // update points earned at this level
-				frequentFlyerLevel = FrequentFlyerLevel.GOLD; // update level
-			} else {
-				pointsAvailable += miles*silverMult; // update points
-				miles = 0; // All miles entered
-			}
-		}
-		if(miles > 0 && frequentFlyerLevel == FrequentFlyerLevel.GOLD){
-			if (platMiles - milesFlown <= miles) { // Indicates that a level has been earned
-				int milesEarnedAtThisLevel =  (miles - (platMiles - milesFlown)); // Miles flow at this level
-				miles -= milesEarnedAtThisLevel; // Update remaining miles from current flight
-				pointsAvailable +=  milesEarnedAtThisLevel*goldMult ; // update points earned at this level
-				frequentFlyerLevel = FrequentFlyerLevel.PLATINUM; // update level
-			} else {
-				pointsAvailable += miles*goldMult; // update points
-				miles = 0; // All miles entered
-			}
-		}
-		if(miles > 0 && frequentFlyerLevel == FrequentFlyerLevel.PLATINUM){
-			pointsAvailable += miles*platMult; // update all points
-			miles = 0; // all miles have been added
-		}
+		int startingPoints = (int) pointsAvailable; // the points before the transaction
 		
-		// Storing the History Log
-		transactionHistory.add(new FFTransaction(from, to, pointsAvailable - startingPoints));
+		// Storing the History Log and adjusting the points gained
+		transactionHistory.add(new FFTransaction(from, to, adjustMilesFlown(miles) - startingPoints));
 		
-		return 0;
+		return (int) pointsAvailable;
 	}
 
+	
+	
 	/**
 	 * Redeem points to pay for a flight. As long as there are enough points in the account to cover
 	 * the cost of the flight (10 points per mile), the points are removed from the flyer's
@@ -178,8 +143,99 @@ public class FrequentFlyer
 	 */
 	public int adjustMilesFlown(int adjustment)
 	{
-		milesFlown += adjustment;
-		return 0;
+		int miles = adjustment;
+		if (miles > 0 && frequentFlyerLevel == FrequentFlyerLevel.BASIC) {
+			if (silverMiles - milesFlown <= miles) { // Indicates that a level has been earned
+				int milesEarnedAtThisLevel =  silverMiles - milesFlown; // Miles flow at this level
+				miles -= milesEarnedAtThisLevel; // Update remaining miles from current flight
+				pointsAvailable +=  milesEarnedAtThisLevel*basicMult ; // update points earned at this level
+				frequentFlyerLevel = FrequentFlyerLevel.SILVER; // update level
+				milesFlown += milesEarnedAtThisLevel; // Update miles before moving on
+			} else {
+				pointsAvailable += miles*basicMult; // update points
+				milesFlown += miles;
+				miles = 0; // All miles entered
+			}
+		}
+		if(miles > 0 && frequentFlyerLevel == FrequentFlyerLevel.SILVER){
+			if (goldMiles - milesFlown <= miles) { // Indicates that a level has been earned
+				int milesEarnedAtThisLevel =  goldMiles - milesFlown; // Miles flow at this level
+				miles -= milesEarnedAtThisLevel; // Update remaining miles from current flight
+				pointsAvailable +=  milesEarnedAtThisLevel*silverMult ; // update points earned at this level
+				frequentFlyerLevel = FrequentFlyerLevel.GOLD; // update level
+				milesFlown += milesEarnedAtThisLevel; // Update miles before moving on
+			} else {
+				pointsAvailable += miles*silverMult; // update points
+				milesFlown += miles;
+				miles = 0; // All miles entered
+			}
+		}
+		if(miles > 0 && frequentFlyerLevel == FrequentFlyerLevel.GOLD){
+			if (platMiles - milesFlown <= miles) { // Indicates that a level has been earned
+				int milesEarnedAtThisLevel =  platMiles - milesFlown; // Miles flow at this level
+				miles -= milesEarnedAtThisLevel; // Update remaining miles from current flight
+				pointsAvailable +=  milesEarnedAtThisLevel*goldMult ; // update points earned at this level
+				frequentFlyerLevel = FrequentFlyerLevel.PLATINUM; // update level
+				milesFlown += milesEarnedAtThisLevel; // Update miles before moving on
+			} else {
+				pointsAvailable += miles*goldMult; // update points
+				milesFlown += miles;
+				miles = 0; // All miles entered
+			}
+		}
+		if(miles > 0 && frequentFlyerLevel == FrequentFlyerLevel.PLATINUM){
+			pointsAvailable += miles*platMult; // update all points
+			milesFlown += miles;
+			miles = 0; // all miles have been added
+		}
+		// To account for negative inputs
+		if (miles < 0){
+			if (miles < 0 && frequentFlyerLevel == FrequentFlyerLevel.PLATINUM ){
+				if (milesFlown + miles < platMiles){ // then we need to adjust the level mid adjustment
+					int milesLostAtThisLevel = (milesFlown - platMiles); // Miles flow at this level- results in positive
+					pointsAvailable -= milesLostAtThisLevel*platMult; // subtract points accordingly					
+					miles += milesLostAtThisLevel; // Update miles left to adjust by- approaches zero from negative					
+					frequentFlyerLevel = FrequentFlyerLevel.GOLD; //adjust level
+					milesFlown -= milesLostAtThisLevel; // Update miles before moving on
+				} else {
+					pointsAvailable += miles*platMult; // adjust the points
+					milesFlown += miles;
+					miles = 0;
+				}
+			}
+			if (miles < 0 && frequentFlyerLevel == FrequentFlyerLevel.GOLD ){
+				if ( milesFlown + miles < goldMiles){ // then we need to adjust the level mid adjustment
+					int milesLostAtThisLevel =  (milesFlown - goldMiles); // Miles flow at this level- results in positive
+					pointsAvailable -= milesLostAtThisLevel*goldMult; // subtract points accordingly					
+					miles += milesLostAtThisLevel; // Update miles left to adjust by- approaches zero from negative					
+					frequentFlyerLevel = FrequentFlyerLevel.SILVER; //adjust level
+					milesFlown -= milesLostAtThisLevel; // Update miles before moving on
+				} else {
+					pointsAvailable += miles*goldMult; // adjust the points
+					milesFlown += miles;
+					miles = 0;
+				}
+			}
+			if (miles < 0 && frequentFlyerLevel == FrequentFlyerLevel.SILVER ){
+				if ( milesFlown + miles < silverMiles){ // then we need to adjust the level mid adjustment
+					int milesLostAtThisLevel =  (milesFlown - silverMiles); // Miles flow at this level- results in positive
+					pointsAvailable -= milesLostAtThisLevel*silverMult; // subtract points accordingly					
+					miles += milesLostAtThisLevel; // Update miles left to adjust by- approaches zero from negative					
+					frequentFlyerLevel = FrequentFlyerLevel.BASIC; //adjust level
+					milesFlown -= milesLostAtThisLevel; // Update miles before moving on
+				} else {
+					pointsAvailable += miles*basicMult; // adjust the points
+					milesFlown += miles;
+					miles = 0;
+				}
+			}
+			if(miles < 0 && frequentFlyerLevel == FrequentFlyerLevel.BASIC){
+				pointsAvailable += miles*basicMult; // update all points
+				milesFlown += miles;
+				miles = 0; // all miles have been added
+			}	
+		}	
+		return (int) pointsAvailable;
 	}
 	
 	
@@ -217,5 +273,9 @@ public class FrequentFlyer
 	public String getFrequentFlyerId()
 	{
 		return frequentFlyerId;
+	}
+	
+	public int getMilesFlown(){
+		return milesFlown;
 	}
 }

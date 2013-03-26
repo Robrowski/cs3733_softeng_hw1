@@ -95,8 +95,27 @@ public class FrequentFlyerStarterTest
 		assertEquals(1, fft.getTransactionNumber());
 		assertEquals(200.0, fft.getTransactionAmount(), 0.0001);
 	}
-}
 
+	/** Tests bidirectional adjustment to ensure that the same miles adds/subtracts the 
+	 *  same number of points, whether positive or negative. 
+	 * 
+	 * This is a fully test of the adjustMilesFlown method because it exercises all 
+	 *  frequent flyer levels and mathematic functions in the method.
+	 */
+	@Test
+	public void bidirectionalAdjustmentTest(){
+		System.out.println("Points after: "+ flyer1.getPointsAvailable());
+		flyer1.adjustMilesFlown(250000); // an amount that spans all levels
+		System.out.println("Points after: "+ flyer1.getPointsAvailable());
+		flyer1.adjustMilesFlown(-250000);// Adjust backwards
+		System.out.println("Points after: "+ flyer1.getPointsAvailable());
+		assertTrue(flyer1.getPointsAvailable() ==0); // It should be back to zero...
+		assertTrue(flyer1.getMilesFlown()== 0);		
+	}
+	
+	
+	
+	
 	/** Checks ordering of transactions
 	 * 
 	 */
@@ -108,7 +127,7 @@ public class FrequentFlyerStarterTest
 		flyer1.recordFlight("ATL", "BOS");
 		flyer1.recordFlight("ORD", "BOS");
 		flyer1.recordFlight("ORD", "BOS");
-		flyer1.recordFlight("BOS", "DEN");
+		flyer1.recordFlight("BOS", "JFK");
 		
 		Iterator<FFTransaction> history = flyer1.getTransactionHistory();
 		assertTrue(history.hasNext());
@@ -139,6 +158,6 @@ public class FrequentFlyerStarterTest
 		assertTrue(history.hasNext());
 		fft = history.next();
 		assertEquals("BOS", fft.getFrom());
-		assertEquals("DEN", fft.getTo());
+		assertEquals("JFK", fft.getTo());
 	}
 }
