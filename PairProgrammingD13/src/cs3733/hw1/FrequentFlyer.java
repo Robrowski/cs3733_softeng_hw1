@@ -5,30 +5,44 @@
  * terms of the Eclipse Public License v1.0 which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  * 
- * Contributors: gpollice
+ * Contributors: gpollice, Alex Solomon, Rob Dabrowski, Gonzo
  *******************************************************************************/
 
 package cs3733.hw1;
 
+import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.PriorityQueue;
-import cs3733.hw1.FrequentFlyerLevel;;
+
+
 /**
  * Description
  * 
- * @author gpollice
+ * @author Alex Solomon and Rob Dabrowski
  * @version Mar 19, 2013
  */
 public class FrequentFlyer
 {
 	private final String frequentFlyerId;
-	private int pointsAvailable;
+	private double pointsAvailable;
+	private int milesFlown; 
 	private FrequentFlyerLevel frequentFlyerLevel;
-	private PriorityQueue<FFTransaction> transactionHistory;
+	private ArrayList<FFTransaction> transactionHistory;
+	private DistanceTable distTable = DistanceTable.getInstance();
+	
+	// These are the minimum number of miles needed to gain a level
+	@SuppressWarnings("unused")
+	private final static int basicMiles = 0;
+	private final static int silverMiles = 25000;
+	private final static int goldMiles = 50000;
+	private final static int platMiles = 100000;
+	
+	// These are the multipliers associated with the different levels
+	private final static double basicMult = 1;
+	private final static double silverMult = 1.25;
+	private final static double goldMult = 1.5;
+	private final static double platMult = 2;
 	
 
-	private float pointsMultiplier;
-	
 	/**
 	 * Constructor. The only identification for a frequent flyer is the ID, which will be used by
 	 * clients for various purposes.
@@ -41,8 +55,7 @@ public class FrequentFlyer
 		this.frequentFlyerId = frequentFlyerId;
 		this.pointsAvailable = 0;
 		this.frequentFlyerLevel = FrequentFlyerLevel.BASIC;
-		this.transactionHistory = new PriorityQueue<FFTransaction>();
-		this.pointsMultiplier= 1;
+		this.transactionHistory = new ArrayList<FFTransaction>();
 	}
 
 	/**
@@ -60,7 +73,49 @@ public class FrequentFlyer
 	 */
 	public int recordFlight(String from, String to)
 	{
-		// TODO
+		double startingPoints = pointsAvailable;
+		int miles = distTable.getDistance(from, to); // Miles for current flight in question
+		if (miles > 0 && frequentFlyerLevel == FrequentFlyerLevel.BASIC) { 
+			if (silverMiles - milesFlown <= miles) { // Indicates that a level has been earned
+				int milesEarnedAtThisLevel =  (miles - (silverMiles - milesFlown)); // Miles flow at this level
+				miles -= milesEarnedAtThisLevel; // Update remaining miles from current flight
+				pointsAvailable +=  milesEarnedAtThisLevel*basicMult ; // update points earned at this level
+				frequentFlyerLevel = FrequentFlyerLevel.SILVER; // update level
+			} else {
+				pointsAvailable += miles*basicMult; // update points
+				miles = 0; // All miles entered
+			}
+		}
+		if(miles > 0 && frequentFlyerLevel == FrequentFlyerLevel.SILVER){
+			if (goldMiles - milesFlown <= miles) { // Indicates that a level has been earned
+				int milesEarnedAtThisLevel =  (miles - (goldMiles - milesFlown)); // Miles flow at this level
+				miles -= milesEarnedAtThisLevel; // Update remaining miles from current flight
+				pointsAvailable +=  milesEarnedAtThisLevel*silverMult ; // update points earned at this level
+				frequentFlyerLevel = FrequentFlyerLevel.GOLD; // update level
+			} else {
+				pointsAvailable += miles*silverMult; // update points
+				miles = 0; // All miles entered
+			}
+		}
+		if(miles > 0 && frequentFlyerLevel == FrequentFlyerLevel.GOLD){
+			if (platMiles - milesFlown <= miles) { // Indicates that a level has been earned
+				int milesEarnedAtThisLevel =  (miles - (platMiles - milesFlown)); // Miles flow at this level
+				miles -= milesEarnedAtThisLevel; // Update remaining miles from current flight
+				pointsAvailable +=  milesEarnedAtThisLevel*goldMult ; // update points earned at this level
+				frequentFlyerLevel = FrequentFlyerLevel.PLATINUM; // update level
+			} else {
+				pointsAvailable += miles*goldMult; // update points
+				miles = 0; // All miles entered
+			}
+		}
+		if(miles > 0 && frequentFlyerLevel == FrequentFlyerLevel.PLATINUM){
+			pointsAvailable += miles*platMult; // update all points
+			miles = 0; // all miles have been added
+		}
+		
+		// Storing the History Log
+		transactionHistory.add(new FFTransaction(from, to, pointsAvailable - startingPoints));
+		
 		return 0;
 	}
 
@@ -76,14 +131,19 @@ public class FrequentFlyer
 	 *            the source airport's code
 	 * @param to
 	 *            the destination airport's code
-	 * @returnthe frequent flyer's point level after this redemption (truncating any fractions).
+	 * @return the frequent flyer's point level after this redemption (truncating any fractions).
 	 * @throws InsufficientPointsException if there not enough points to pay for the flight
 	 */
 	public int redeemPoints(String from, String to)
 			throws InsufficientPointsException
 	{
-		// TODO
-		return 0;
+		int pointsNeeded = distTable.getDistance(from, to) * 10;
+		if (pointsAvailable < pointsNeeded) throw new InsufficientPointsException("Insufficient points");
+		
+		pointsAvailable -= pointsNeeded;
+		transactionHistory.add(new FFTransaction(from, to, -pointsNeeded));
+				
+		return (int) pointsAvailable;
 	}
 	
 	/**
@@ -101,9 +161,27 @@ public class FrequentFlyer
 	 */
 	public int adjustBalance(int adjustment)
 	{
-		// TODO
+		pointsAvailable += adjustment;
+		transactionHistory.add(new FFTransaction("ADJUST", null, adjustment));
+		return (int) pointsAvailable;
+	}
+	
+	/**
+	 * This method is used by the airline to adjust the number of miles flown by the
+	 * frequent flyer. It's similar to adjustBalance, but it adjusts the miles rather
+	 * than the points. This does, however, adjust the points (and possibly the 
+	 * level) appropriately. 
+	 * 
+	 * @param the mileage adjustment
+	 * @return the resulting points (not miles) available for this flyer, truncating
+	 * 	any fractional points.
+	 */
+	public int adjustMilesFlown(int adjustment)
+	{
+		milesFlown += adjustment;
 		return 0;
 	}
+	
 	
 	/**
 	 * Return an iterator to the transaction history. This should return an iterator
@@ -122,7 +200,7 @@ public class FrequentFlyer
 	 */
 	public int getPointsAvailable()
 	{
-		return pointsAvailable;
+		return (int) pointsAvailable;
 	}
 	
 	/**

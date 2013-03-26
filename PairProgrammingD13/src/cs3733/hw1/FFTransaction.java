@@ -7,7 +7,7 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    gpollice
+ *    gpollice, Alex Solomon, Rob Dabrowski
  *******************************************************************************/
 
 package cs3733.hw1;
@@ -36,11 +36,16 @@ public class FFTransaction
 		this.to = to;
 		this.transactionAmount = transactionAmount;
 	}
+	
+	/**
+	 * Reset the transaction numbers. This is used mainly for testing.
+	 *
+	 */
+	static void resetTransactionNumbers()
+	{
+		nextTransactionNumber = 1;
+	}
 
-	
-	
-	
-	
 	/**
 	 * @return the transactionNumber
 	 */

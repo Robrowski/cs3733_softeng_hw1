@@ -53,6 +53,7 @@ public class FrequentFlyerStarterTest
 	{
 		flyer1 = new FrequentFlyer("F0001");
 		flyer2 = new FrequentFlyer("F0002");
+		FFTransaction.resetTransactionNumbers();
 	}
 
 	@Test
@@ -76,7 +77,7 @@ public class FrequentFlyerStarterTest
 	@Test
 	public void enterFlightChangingLevels()
 	{
-		flyer1.adjustBalance(24900);
+		flyer1.adjustMilesFlown(24900);
 		flyer1.recordFlight("BOS", "EWR");
 		assertEquals(FrequentFlyerLevel.SILVER, flyer1.getFrequentFlyerLevel());
 		assertEquals(25125, flyer1.getPointsAvailable());
@@ -94,7 +95,8 @@ public class FrequentFlyerStarterTest
 		assertEquals(1, fft.getTransactionNumber());
 		assertEquals(200.0, fft.getTransactionAmount(), 0.0001);
 	}
-	
+}
+
 	/** Checks ordering of transactions
 	 * 
 	 */
